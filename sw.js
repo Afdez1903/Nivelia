@@ -1,7 +1,7 @@
 // Nivelia: guarda la app en el dispositivo para que funcione sin conexión.
 // Al cambiar archivos de la app, sube el número de versión.
-const CACHE = "nivelia-v2";
-const FILES = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
+const CACHE = "nivelia-v3";
+const FILES = ["./", "index.html", "styles.css", "app.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
@@ -21,6 +21,6 @@ self.addEventListener("fetch", (e) => {
         caches.open(CACHE).then((c) => c.put(e.request, copy));
         return r;
       })
-      .catch(() => caches.match(e.request).then((m) => m || caches.match("index.html")))
+      .catch(() => caches.match(e.request, { ignoreSearch: true }).then((m) => m || caches.match("index.html")))
   );
 });
