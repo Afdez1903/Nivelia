@@ -53,7 +53,7 @@ body{
   padding-right:max(16px,env(safe-area-inset-right,0px));
   -webkit-font-smoothing:antialiased;
 }
-button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-appearance:none;appearance:none}
 button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .app{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
 .tnum{font-variant-numeric:tabular-nums}
@@ -107,9 +107,10 @@ h1{font-size:2.1rem;line-height:1.1;font-weight:700;letter-spacing:-.02em;margin
 
 /* Segmentado */
 .seg{display:flex;background:var(--fill);border-radius:9px;padding:2px;gap:2px}
-.seg button{flex:1;text-align:center;padding:7px 4px;border-radius:7px;font-size:.88rem;font-weight:500;min-width:0}
-.seg button.on{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.18);font-weight:600}
+.seg button{flex:1;text-align:center;padding:11px 4px;min-height:44px;border-radius:8px;font-size:.88rem;font-weight:500;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.seg button.on{background:var(--blue);color:#fff;font-weight:600}
 .seg button small{display:block;font-size:.72rem;color:var(--label2);font-weight:500}
+.seg button.on small{color:rgba(255,255,255,.85)}
 
 textarea,input[type=text],input[type=number]{
   width:100%;font:inherit;font-size:16px;color:var(--label);background:var(--card);border:0;border-radius:12px;padding:12px 16px;resize:vertical;
@@ -180,8 +181,9 @@ textarea{min-height:92px}
 .sheet{
   width:100%;max-width:560px;max-height:92%;overflow:auto;background:var(--bg);border-radius:18px 18px 0 0;
   padding:0 max(16px,env(safe-area-inset-left,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-right,0px));
-  display:flex;flex-direction:column;gap:18px;animation:up .28s cubic-bezier(.2,.8,.2,1);
+  display:flex;flex-direction:column;gap:18px;
 }
+.sheet.anim{animation:up .28s cubic-bezier(.2,.8,.2,1)}
 @keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
 .sheet-h{display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);padding:14px 0 8px;z-index:2}
 .sheet-h b{font-size:1.02rem}
@@ -205,7 +207,7 @@ textarea{min-height:92px}
   display:flex;gap:14px;align-items:center;max-width:calc(100% - 32px);box-shadow:0 6px 24px rgba(0,0,0,.25);
 }
 .toast button{color:var(--blue);font-weight:700;filter:brightness(1.25)}
-@media (prefers-reduced-motion:reduce){.sheet{animation:none}.bar>i{transition:none}}
+@media (prefers-reduced-motion:reduce){.sheet.anim{animation:none}.bar>i{transition:none}}
 </style>
 </head>
 <body>
@@ -516,13 +518,16 @@ function viewAch(){
   return '<header><h1>Logros</h1><p class="sub tnum">'+got+' de '+ACH.length+' conseguidos</p></header><div class="ach">'+cards+'</div>';
 }
 
+var tabChanged=false;
 function render(){
   var a=document.activeElement;
   if(a&&a.id==="note"&&S.tab==="day"){/* no pisar lo que se escribe */return}
   var h=S.tab==="day"?viewDay():S.tab==="cal"?viewCal():S.tab==="prog"?viewProg():viewAch();
   if(S.slow)h='<p class="note">No se ha podido contactar con tu almacenamiento. Se muestra la última copia de este dispositivo.</p>'+h;
   if(S.failed)h='<p class="note" style="color:var(--red-t)">El último cambio no se ha podido guardar. Se reintentará con el siguiente.</p>'+h;
+  var sy=window.scrollY;
   $("#app").innerHTML=h;
+  if(!tabChanged)window.scrollTo(0,sy);tabChanged=false;
   Array.prototype.forEach.call(document.querySelectorAll("#tabs button"),function(b){
     if(b.getAttribute("data-v")===S.tab)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");
   });
@@ -556,7 +561,7 @@ function sheetHTML(){
     if(F.type==="bad")body+='<div class="field"><label for="f-lesson">¿Qué aprendes? (reduce la penalización a la mitad)</label><input id="f-lesson" type="text" maxlength="160" placeholder="La próxima vez respiro antes de contestar" value="'+esc(F.lesson)+'"></div>';
   }
   body+='<div class="field"><div class="lab">XP de esta entrada</div><div class="preview" id="f-prev"></div></div>';
-  return '<div class="scrim" data-a="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="Nueva entrada"><div class="sheet-h"><button data-a="closeSheet">Cancelar</button><b>'+titles[F.type]+'</b><button class="go" id="f-go" data-a="saveSheet">Guardar</button></div>'+body+'</div></div>';
+  return '<div class="scrim" data-a="scrim"><div class="sheet'+(F.anim?' anim':'')+'" role="dialog" aria-modal="true" aria-label="Nueva entrada"><div class="sheet-h"><button data-a="closeSheet">Cancelar</button><b>'+titles[F.type]+'</b><button class="go" id="f-go" data-a="saveSheet">Guardar</button></div>'+body+'</div></div>';
 }
 function updatePreview(){
   var x=formXP(),p=$("#f-prev"),g=$("#f-go");
@@ -564,12 +569,14 @@ function updatePreview(){
   if(g)g.disabled=!formValid();
 }
 function openSheet(type){
-  F={type:type,text:"",size:"m",lesson:"",sport:"Fútbol",other:"",min:45,int:"n"};
+  F={type:type,text:"",size:"m",lesson:"",sport:"Fútbol",other:"",min:45,int:"n",anim:true};
   drawSheet();
 }
 function drawSheet(){
+  var old=document.querySelector(".sheet"),st=old?old.scrollTop:0;
   $("#layer").innerHTML=sheetHTML();updatePreview();
-  var f=$("#f-text")||$("#f-min");if(f&&F.type!=="sport"&&!F.text)f.focus();
+  F.anim=false;var ns=document.querySelector(".sheet");if(ns&&st)ns.scrollTop=st;
+  
 }
 function closeSheet(){F=null;$("#layer").innerHTML=""}
 
@@ -597,7 +604,7 @@ var noteTimer=null;
 function act(a,v){
   var k=S.sel;
   switch(a){
-    case"tab":S.tab=v;S.editHabits=false;render();window.scrollTo(0,0);break;
+    case"tab":S.tab=v;S.editHabits=false;tabChanged=true;render();window.scrollTo(0,0);break;
     case"prevDay":case"nextDay":{var d=parse(S.sel);d.setDate(d.getDate()+(a==="prevDay"?-1:1));S.sel=dkey(d);render();break}
     case"today":today=dkey(new Date());S.sel=today;render();break;
     case"mood":{var day=ensureDay(k);day.mood=day.mood===+v?null:+v;persistDay(k);render();break}
@@ -613,7 +620,7 @@ function act(a,v){
     case"editHabits":S.editHabits=!S.editHabits;render();break;
     case"delHabit":S.habits=S.habits.filter(function(h){return h.id!==v});persistHabits();render();break;
     case"pick":S.sel=v;render();break;
-    case"openDay":S.tab="day";render();window.scrollTo(0,0);break;
+    case"openDay":S.tab="day";tabChanged=true;render();window.scrollTo(0,0);break;
     case"calPrev":S.cal.m--;if(S.cal.m<0){S.cal.m=11;S.cal.y--}render();break;
     case"calNext":S.cal.m++;if(S.cal.m>11){S.cal.m=0;S.cal.y++}render();break;
     case"calToday":{var n=new Date();today=dkey(n);S.cal={y:n.getFullYear(),m:n.getMonth()};S.sel=today;render();break}
